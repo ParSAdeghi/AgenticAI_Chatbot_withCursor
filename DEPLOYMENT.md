@@ -6,6 +6,11 @@ This project is production-ready for Azure Container Registry deployment.
 
 ### 1. Deploy to Azure Container Registry
 
+#### Optional: local-only Azure credentials/config file (recommended)
+
+Create a local file (do not commit) at `azure/env.azure` and put your Azure service principal credentials there.
+This repo’s `.gitignore` is configured so your Azure secrets won’t be committed.
+
 ```bash
 # Make scripts executable (if not already)
 chmod +x azure/*.sh
@@ -19,6 +24,22 @@ chmod +x azure/*.sh
 ```bash
 export OPENAI_API_KEY="sk-your-key-here"
 ./azure/deploy-aci.sh canada-agent-rg canadaagent canada-agent-backend latest
+```
+
+### 3. Deploy Frontend to Azure App Service (Container)
+
+This repo deploys the **backend** to ACI and the **frontend** to App Service (container) using ACR.
+
+1) Build & push the frontend image to ACR (you must pass the ACI backend URL so the frontend can fetch it):
+
+```bash
+./azure/deploy-frontend.sh canada-agent-rg canadaagent latest https://<your-aci-fqdn>:8000
+```
+
+2) Deploy the frontend image to App Service:
+
+```bash
+./azure/deploy-frontend-app-service.sh canada-agent-rg canadaagent canada-agent-frontend latest
 ```
 
 ### 3. Deploy to Azure App Service

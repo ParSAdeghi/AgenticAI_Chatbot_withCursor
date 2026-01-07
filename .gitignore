@@ -4,8 +4,13 @@
 .env
 .env.local
 .env.*.local
+.env.*
 backend/.env
 *.env
+azure/.env*
+secrets/
+*.pem
+*.key
 
 # ============================================
 # Python Backend
@@ -60,9 +65,6 @@ dist/
 # Package Managers
 # ============================================
 uv.lock
-package-lock.json
-yarn.lock
-pnpm-lock.yaml
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -130,7 +132,7 @@ MARKDOWN_FIX.md
 # ============================================
 # Docker
 # ============================================
-.dockerignore
+# (keep .dockerignore files tracked so Docker builds in CI behave the same)
 
 # ============================================
 # Miscellaneous
