@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: canada-tourist-config
+  namespace: canada-tourist
+data:
+  OPENAI_MODEL: "gpt-4o-mini"
+  OPENAI_LOCATION_MODEL: "gpt-4o-mini"
+  CORS_ALLOW_ORIGINS: '["http://localhost:3000","https://canada-tourist-frontend.local"]'

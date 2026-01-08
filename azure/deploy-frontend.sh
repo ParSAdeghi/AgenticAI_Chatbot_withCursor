@@ -1,15 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Build and push the FRONTEND image to Azure Container Registry (ACR)
+# Deploy FRONTEND container to Azure App Service (Linux Container)
 # Usage:
-#   ./azure/deploy-frontend.sh <resource-group> <acr-name> <image-tag> <backend-url>
+#   ./azure/deploy-frontend.sh <resource-group> <acr-name> [app-name] [image-tag]
 #
 # Example:
-#   ./azure/deploy-frontend.sh my-rg myacr latest https://my-aci.eastus.azurecontainer.io:8000
+#   ./azure/deploy-frontend.sh my-rg myacr my-frontend latest
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Optional local-only config file (DO NOT COMMIT secrets)
 for f in "$SCRIPT_DIR/.env.azure" "$SCRIPT_DIR/env.azure"; do
@@ -25,25 +24,15 @@ done
 
 RESOURCE_GROUP="${1:-${AZURE_RESOURCE_GROUP:-canada-agent-rg}}"
 ACR_NAME="${2:-${AZURE_ACR_NAME:-canadaagent}}"
-IMAGE_TAG="${3:-${AZURE_IMAGE_TAG:-latest}}"
-BACKEND_URL="${4:-${NEXT_PUBLIC_BACKEND_URL:-}}"
+APP_NAME="${3:-${AZURE_FRONTEND_APP_NAME:-canada-agent-frontend}}"
+IMAGE_TAG="${4:-${AZURE_IMAGE_TAG:-latest}}"
 
 IMAGE_NAME="canada-agent-frontend"
-
-if [[ -z "$BACKEND_URL" ]]; then
-  echo "ERROR: backend-url is required (used to set NEXT_PUBLIC_BACKEND_URL at build time)."
-  echo "Usage: ./azure/deploy-frontend.sh <rg> <acr> <tag> <backend-url>"
-  exit 1
-fi
+APP_SERVICE_PLAN="${APP_NAME}-plan"
 
 echo "=========================================="
-echo "  Azure ACR - Build & Push Frontend"
+echo "  Deploying Frontend to Azure App Service"
 echo "=========================================="
-echo ""
-echo "Resource Group: $RESOURCE_GROUP"
-echo "ACR Name:       $ACR_NAME"
-echo "Image:          $IMAGE_NAME:$IMAGE_TAG"
-echo "Backend URL:    $BACKEND_URL"
 echo ""
 
 if ! command -v az &> /dev/null; then
@@ -65,45 +54,70 @@ if ! az account show &> /dev/null; then
   fi
 fi
 
-echo "Creating resource group (if not exists)..."
-az group create --name "$RESOURCE_GROUP" --location "${AZURE_LOCATION:-eastus}" 2>/dev/null || \
-  echo "Resource group already exists"
-
-echo "Creating Azure Container Registry (if not exists)..."
-az acr create \
-  --resource-group "$RESOURCE_GROUP" \
-  --name "$ACR_NAME" \
-  --sku Basic \
-  --admin-enabled true \
-  2>/dev/null || echo "ACR already exists"
-
+# Get ACR login server
 ACR_LOGIN_SERVER=$(az acr show --name "$ACR_NAME" --resource-group "$RESOURCE_GROUP" --query loginServer -o tsv)
 FULL_IMAGE_NAME="$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG"
 
-echo "ACR Login Server: $ACR_LOGIN_SERVER"
-echo "Full Image Name:  $FULL_IMAGE_NAME"
+echo "Resource Group: $RESOURCE_GROUP"
+echo "App Service:    $APP_NAME"
+echo "Image:          $FULL_IMAGE_NAME"
 echo ""
 
-echo "Building frontend Docker image..."
-cd "$PROJECT_ROOT/frontend"
-docker build \
-  --build-arg NEXT_PUBLIC_BACKEND_URL="$BACKEND_URL" \
-  -t "$IMAGE_NAME:$IMAGE_TAG" \
-  .
+# Get ACR credentials
+ACR_USERNAME=$(az acr credential show --name "$ACR_NAME" --resource-group "$RESOURCE_GROUP" --query username -o tsv)
+ACR_PASSWORD=$(az acr credential show --name "$ACR_NAME" --resource-group "$RESOURCE_GROUP" --query passwords[0].value -o tsv)
 
-echo "Tagging image for ACR..."
-docker tag "$IMAGE_NAME:$IMAGE_TAG" "$FULL_IMAGE_NAME"
+echo "Creating App Service Plan (if not exists)..."
+az appservice plan create \
+  --name "$APP_SERVICE_PLAN" \
+  --resource-group "$RESOURCE_GROUP" \
+  --is-linux \
+  --sku B1 \
+  --output none 2>/dev/null || echo "App Service Plan already exists"
 
-echo "Logging in to ACR..."
-az acr login --name "$ACR_NAME"
+echo "Creating Web App (if not exists)..."
+az webapp create \
+  --name "$APP_NAME" \
+  --resource-group "$RESOURCE_GROUP" \
+  --plan "$APP_SERVICE_PLAN" \
+  --deployment-container-image-name "$FULL_IMAGE_NAME" \
+  --output none 2>/dev/null || echo "Web App already exists"
 
-echo "Pushing image to ACR..."
-docker push "$FULL_IMAGE_NAME"
+echo "Configuring container settings..."
+az webapp config container set \
+  --name "$APP_NAME" \
+  --resource-group "$RESOURCE_GROUP" \
+  --docker-custom-image-name "$FULL_IMAGE_NAME" \
+  --docker-registry-server-url "https://$ACR_LOGIN_SERVER" \
+  --docker-registry-server-user "$ACR_USERNAME" \
+  --docker-registry-server-password "$ACR_PASSWORD" \
+  --output none
+
+echo "Configuring app settings..."
+az webapp config appsettings set \
+  --name "$APP_NAME" \
+  --resource-group "$RESOURCE_GROUP" \
+  --settings \
+    WEBSITES_PORT=3000 \
+  --output none
+
+echo "Enabling continuous deployment..."
+az webapp deployment container config \
+  --name "$APP_NAME" \
+  --resource-group "$RESOURCE_GROUP" \
+  --enable-cd true \
+  --output none
+
+APP_URL=$(az webapp show \
+  --name "$APP_NAME" \
+  --resource-group "$RESOURCE_GROUP" \
+  --query defaultHostName -o tsv)
 
 echo ""
 echo "=========================================="
-echo "  Frontend Image Pushed!"
+echo "  Frontend Deployment Complete!"
 echo "=========================================="
 echo ""
-echo "Image: $FULL_IMAGE_NAME"
+echo "Frontend URL:"
+echo "  https://$APP_URL"
 

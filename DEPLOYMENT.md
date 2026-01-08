@@ -15,39 +15,65 @@ This repo’s `.gitignore` is configured so your Azure secrets won’t be commit
 # Make scripts executable (if not already)
 chmod +x azure/*.sh
 
-# Deploy to ACR
-./azure/deploy.sh canada-agent-rg canadaagent latest
+# Build and push backend image to ACR
+./azure/build-backend.sh canada-agent-rg canadaagent latest
 ```
 
-### 2. Deploy to Azure Container Instances
+### 2. Deploy Backend (ACI or App Service)
 
+**Deploy to Azure Container Instances:**
 ```bash
 export OPENAI_API_KEY="sk-your-key-here"
-./azure/deploy-aci.sh canada-agent-rg canadaagent canada-agent-backend latest
+./azure/deploy-backend.sh aci canada-agent-rg canadaagent canada-agent-backend latest
+```
+
+**Deploy to Azure App Service:**
+```bash
+export OPENAI_API_KEY="sk-your-key-here"
+./azure/deploy-backend.sh app-service canada-agent-rg canadaagent canada-agent-backend latest
 ```
 
 ### 3. Deploy Frontend to Azure App Service (Container)
 
 This repo deploys the **backend** to ACI and the **frontend** to App Service (container) using ACR.
 
-1) Build & push the frontend image to ACR (you must pass the ACI backend URL so the frontend can fetch it):
+1) Build & push the frontend image to ACR (you must pass the backend URL so the frontend can fetch it):
 
 ```bash
-./azure/deploy-frontend.sh canada-agent-rg canadaagent latest https://<your-aci-fqdn>:8000
+./azure/build-frontend.sh canada-agent-rg canadaagent latest https://<your-backend-url>
 ```
 
 2) Deploy the frontend image to App Service:
 
 ```bash
-./azure/deploy-frontend-app-service.sh canada-agent-rg canadaagent canada-agent-frontend latest
+./azure/deploy-frontend.sh canada-agent-rg canadaagent canada-agent-frontend latest
 ```
 
-### 3. Deploy to Azure App Service
+### 4. Full Stack Deployment (Convenience Scripts)
 
+**Option A: Backend on ACI + Frontend on App Service** (Recommended for cost optimization)
 ```bash
 export OPENAI_API_KEY="sk-your-key-here"
-./azure/deploy-app-service.sh canada-agent-rg canadaagent canada-agent-backend latest
+./azure/deploy-be-aci-fe-app.sh canada-agent-rg canadaagent
 ```
+
+This script automatically:
+1. Deploys backend to ACI
+2. Gets the backend URL
+3. Builds frontend image with backend URL
+4. Deploys frontend to App Service
+
+**Option B: Backend on App Service + Frontend on App Service** (Recommended for consistency)
+```bash
+export OPENAI_API_KEY="sk-your-key-here"
+./azure/deploy-be-app-fe-app.sh canada-agent-rg canadaagent
+```
+
+This script automatically:
+1. Deploys backend to App Service
+2. Gets the backend URL
+3. Builds frontend image with backend URL
+4. Deploys frontend to App Service
 
 ## Production Features
 
@@ -107,9 +133,12 @@ curl http://localhost:8000/healthz
 │   ├── .dockerignore          # Optimized ignore patterns
 │   └── app/                   # Application code
 ├── azure/
-│   ├── deploy.sh              # Build and push to ACR
-│   ├── deploy-aci.sh          # Deploy to Container Instances
-│   ├── deploy-app-service.sh   # Deploy to App Service
+│   ├── build-backend.sh        # Build and push backend Docker image to ACR
+│   ├── build-frontend.sh       # Build and push frontend Docker image to ACR
+│   ├── deploy-backend.sh       # Deploy backend (ACI or App Service)
+│   ├── deploy-frontend.sh      # Deploy frontend (App Service)
+│   ├── deploy-be-aci-fe-app.sh # Full stack: Backend ACI + Frontend App Service
+│   ├── deploy-be-app-fe-app.sh # Full stack: Backend App Service + Frontend App Service
 │   ├── azure-pipelines.yml    # CI/CD pipeline
 │   └── README.md              # Detailed Azure guide
 └── docker-compose.prod.yml    # Local production testing

@@ -7,6 +7,10 @@
 .env.*
 backend/.env
 *.env
+
+# Kubernetes Secrets (CRITICAL)
+k8s/secret.yaml
+k8s/secrets.yaml
 azure/.env*
 secrets/
 *.pem

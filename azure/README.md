@@ -27,11 +27,11 @@ This guide walks you through deploying the Canada Tourist Chatbot backend to Azu
 # Make scripts executable
 chmod +x azure/*.sh
 
-# Deploy to ACR (creates resource group and ACR if needed)
-./azure/deploy.sh <resource-group-name> <acr-name> <image-tag>
+# Build and push backend image to ACR (creates resource group and ACR if needed)
+./azure/build-backend.sh <resource-group-name> <acr-name> <image-tag>
 
 # Example:
-./azure/deploy.sh canada-agent-rg canadaagent latest
+./azure/build-backend.sh canada-agent-rg canadaagent latest
 ```
 
 This will:
@@ -40,14 +40,15 @@ This will:
 - Build the Docker image
 - Push the image to ACR
 
-### 2. Deploy to Azure Container Instances (ACI)
+### 2. Deploy Backend (ACI or App Service)
 
+**Deploy to Azure Container Instances:**
 ```bash
 # Deploy to ACI
-./azure/deploy-aci.sh <resource-group> <acr-name> [container-name] [image-tag]
+./azure/deploy-backend.sh aci <resource-group> <acr-name> [container-name] [image-tag]
 
 # Example:
-./azure/deploy-aci.sh canada-agent-rg canadaagent canada-agent-backend latest
+./azure/deploy-backend.sh aci canada-agent-rg canadaagent canada-agent-backend latest
 ```
 
 This creates a container instance that:
@@ -56,14 +57,13 @@ This creates a container instance that:
 - Automatically restarts on failure
 - Scales manually (use Azure Container Apps for auto-scaling)
 
-### 3. Deploy to Azure App Service
-
+**Deploy to Azure App Service:**
 ```bash
 # Deploy to App Service
-./azure/deploy-app-service.sh <resource-group> <acr-name> [app-name] [image-tag]
+./azure/deploy-backend.sh app-service <resource-group> <acr-name> [app-name] [image-tag]
 
 # Example:
-./azure/deploy-app-service.sh canada-agent-rg canadaagent canada-agent-backend latest
+./azure/deploy-backend.sh app-service canada-agent-rg canadaagent canada-agent-backend latest
 ```
 
 This creates an App Service that:
@@ -190,7 +190,7 @@ az monitor metrics list \
 
 ```bash
 # Rebuild and push
-./azure/deploy.sh canada-agent-rg canadaagent v1.1.0
+./azure/build-backend.sh canada-agent-rg canadaagent v1.1.0
 
 # Restart container (ACI)
 az container restart \

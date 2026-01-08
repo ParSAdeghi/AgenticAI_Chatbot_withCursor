@@ -52,5 +52,5 @@ stages:
               azureSubscription: 'AzureServiceConnection'
               scriptType: 'bash'
               scriptLocation: 'scriptPath'
-              scriptPath: '$(Pipeline.Workspace)/azure/deploy-aci.sh'
-              arguments: '$(resourceGroup) $(acrName) $(imageName) $(Build.BuildId)'
+              scriptPath: '$(Pipeline.Workspace)/azure/deploy-backend.sh'
+              arguments: 'aci $(resourceGroup) $(acrName) $(imageName) $(Build.BuildId)'

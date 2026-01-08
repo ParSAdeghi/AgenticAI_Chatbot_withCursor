@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Azure Container Registry Deployment Script
-# Usage: ./azure/deploy.sh <resource-group> <acr-name> <image-tag>
+# Build and push BACKEND Docker image to Azure Container Registry (ACR)
+# Usage: ./azure/build-backend.sh <resource-group> <acr-name> <image-tag>
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -26,7 +26,7 @@ IMAGE_TAG="${3:-${AZURE_IMAGE_TAG:-latest}}"
 IMAGE_NAME="canada-agent-backend"
 
 echo "=========================================="
-echo "  Azure Container Registry Deployment"
+echo "  Building & Pushing Backend Docker Image"
 echo "=========================================="
 echo ""
 echo "Resource Group: $RESOURCE_GROUP"
@@ -99,15 +99,15 @@ docker push "$FULL_IMAGE_NAME"
 
 echo ""
 echo "=========================================="
-echo "  Deployment Complete!"
+echo "  Build & Push Complete!"
 echo "=========================================="
 echo ""
-echo "Image pushed to: $FULL_IMAGE_NAME"
+echo "Backend image pushed to: $FULL_IMAGE_NAME"
 echo ""
 echo "Next steps:"
 echo "  1. Deploy to Azure Container Instances:"
-echo "     ./azure/deploy-aci.sh $RESOURCE_GROUP $ACR_NAME"
+echo "     ./azure/deploy-backend.sh aci $RESOURCE_GROUP $ACR_NAME"
 echo ""
 echo "  2. Or deploy to Azure App Service:"
-echo "     ./azure/deploy-app-service.sh $RESOURCE_GROUP $ACR_NAME"
+echo "     ./azure/deploy-backend.sh app-service $RESOURCE_GROUP $ACR_NAME"
 echo ""
